@@ -1,0 +1,43 @@
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
+#include <iostream>
+#include <algorithm>
+#include <vector>
+
+int main() {
+
+  // 1. Enumerate Instance Layer properties
+  // Get number of instance layers
+  uint32_t instanceLayerCount;
+
+  // Use second parameter as NULL to return the layer count
+  vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
+  std::vector<VkLayerProperties> layerProperty(instanceLayerCount);
+  vkEnumerateInstanceLayerProperties(&instanceLayerCount, layerProperty.data());
+
+  for (int i = 0; i < instanceLayerCount; ++i) {
+    std::cout << layerProperty[i].layerName << "\t"
+	      << layerProperty[i].specVersion << "\t"
+	      << layerProperty[i].implementationVersion << "\t"
+      	      << layerProperty[i].description
+	      << std::endl;
+    
+    uint32_t instanceExtensionCount;
+    vkEnumerateInstanceExtensionProperties(layerProperty[i].layerName, &instanceExtensionCount,
+					   nullptr);
+    std::vector<VkExtensionProperties> instanceExtensions(instanceExtensionCount);
+    vkEnumerateInstanceExtensionProperties(layerProperty[i].layerName, &instanceExtensionCount,
+					   instanceExtensions.data());
+    for (int j = 0; j < instanceExtensionCount; ++j) {
+      std::cout << "\t" << instanceExtensions[j].extensionName
+		<< "\t" << instanceExtensions[j].specVersion
+		<< std::endl;
+    }
+    std::cout << std::endl;
+  }
+
+  std::cout << "Hello world!" << std::endl;  
+
+  return 0;
+}
