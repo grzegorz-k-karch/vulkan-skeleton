@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<vulkanConfig>
+  <!-- <version>2</version> -->
+  <layer name="VK_LAYER_LUNARG_core_validation">
+    <extension>VK_EXT_debug_report</extension>
+  </layer>
+  <layer name="VK_LAYER_LUNARG_standard_validation">
+    <extension>VK_EXT_debug_report</extension>
+  </layer>
+</vulkanConfig>
