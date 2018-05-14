@@ -28,6 +28,7 @@ struct VulkanInfo {
   std::vector<VkQueueFamilyProperties> QueueFamilyProperties;
   std::vector<VkPhysicalDeviceMemoryProperties> PhysicalDeviceMemoryProperties;
   std::vector<VkPhysicalDeviceProperties> PhysicalDeviceProperties;
+  std::vector<VkSurfaceFormatKHR> SurfaceFormats;  
 };
 
 #endif//VULKAN_SKELETON_CONFIG_H

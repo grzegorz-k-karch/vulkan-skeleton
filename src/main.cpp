@@ -41,38 +41,10 @@ xcb_window_t CreateWindow(xcb_window_t *window, xcb_connection_t **conn) {
   uint32_t value_mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
   const uint32_t value_list[2] = {s->white_pixel,
 				  XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS};
-
   
   xcb_void_cookie_t window_cookie = xcb_create_window(*conn, depth, *window, parent, x, y, width, height, border_width,
 						      _class, visual, value_mask, value_list);
 
-  // xcb_map_window(conn, window);
-
-  // // test  
-  // xcb_flush(conn);
-  
-  // xcb_generic_event_t *e;
-  // int done = 0;
-  // xcb_rectangle_t r = { 20, 20, 60, 60 };
-  
-  // /* event loop */
-  // while (!done && (e = xcb_wait_for_event(conn))) {
-  //   switch (e->response_type & ~0x80) {
-  //   case XCB_EXPOSE:    /* draw or redraw the window */
-  //     xcb_poly_fill_rectangle(conn, parent, window,  1, &r);
-  //     xcb_flush(conn);
-  //     break;
-  //   case XCB_KEY_PRESS:  /* exit on key press */
-  //     done = 1;
-  //     break;
-  //   }
-  //   free(e);
-  // }
-  // /* close connection to server */
-  // xcb_disconnect(conn);
-  // //~test
-
-  // return window;
 }
 
 int main(int argc,  char** argv) {
@@ -177,28 +149,29 @@ int main(int argc,  char** argv) {
   // 4. Create Device  
   // TODO: here just taking the first device
   const int physicalDeviceId = 0;
- 
+  VkPhysicalDevice &physicalDevice = vulkanInfo.PhysicalDevices[physicalDeviceId];
+  
   uint32_t queueFamilyCount;
-  vkGetPhysicalDeviceQueueFamilyProperties(vulkanInfo.PhysicalDevices[physicalDeviceId],
+  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice,
 					   &queueFamilyCount,
 					   nullptr);
   vulkanInfo.QueueFamilyProperties.resize(queueFamilyCount);
-  vkGetPhysicalDeviceQueueFamilyProperties(vulkanInfo.PhysicalDevices[physicalDeviceId],
+  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice,
 					   &queueFamilyCount,
   					   vulkanInfo.QueueFamilyProperties.data());
 
   vulkanInfo.PhysicalDeviceMemoryProperties.resize(physicalDeviceCount);
-  vkGetPhysicalDeviceMemoryProperties(vulkanInfo.PhysicalDevices[physicalDeviceId],
+  vkGetPhysicalDeviceMemoryProperties(physicalDevice,
 				      &vulkanInfo.PhysicalDeviceMemoryProperties[physicalDeviceId]);
 
   vulkanInfo.PhysicalDeviceProperties.resize(physicalDeviceCount);
-  vkGetPhysicalDeviceProperties(vulkanInfo.PhysicalDevices[physicalDeviceId],
+  vkGetPhysicalDeviceProperties(physicalDevice,
 				&vulkanInfo.PhysicalDeviceProperties[physicalDeviceId]);
   
   // Create the logical device object from physical device
   VkDeviceCreateInfo deviceInfo = {};
   VkDevice device;
-  if (vkCreateDevice(vulkanInfo.PhysicalDevices[physicalDeviceId],
+  if (vkCreateDevice(physicalDevice,
 		     &deviceInfo,
 		     nullptr,
 		     &device) != VK_SUCCESS) {
@@ -223,18 +196,31 @@ int main(int argc,  char** argv) {
     LOG(FATAL) << "Could not create surface (Error: " << result << "). Exiting.";
   }
 
-  // vkGetPhysicalDeviceSurfaceSupportKHR(device, queueIndex, surface,
-  //                                      &isPresentationSupported);
-  // if (isPresentationSupported) {
-  //   graphicsQueueFamilyIndex = queueIndex;
-  //   break;
-  // }
-  // vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &queue);
+  int graphicsQueueFamilyIndex;
+  for (int queueIndex = 0; queueIndex < 1; queueIndex++) {
+    VkBool32 isPresentationSupported = false;
+    vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice,
+					 queueIndex,
+					 surface,
+					 &isPresentationSupported);
+    if (isPresentationSupported) {
+      graphicsQueueFamilyIndex = queueIndex;
+      break;
+    }
+  }
+  VkQueue queue;
+  vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &queue);
 
-  // uint32_t formatCount;
-  // vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
-  // VkSurfaceFormatKHR *surfaceFormats = alloc(formatCount*VkSurfaceFormatKHR);
-  // vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, surfaceFormats);
+  uint32_t formatCount;
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice,
+				       surface,
+				       &formatCount,
+				       nullptr);
+  vulkanInfo.SurfaceFormats.resize(formatCount);
+  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice,
+				       surface,
+				       &formatCount,
+				       vulkanInfo.SurfaceFormats.data());
 
   // vkBeginCommandBuffer(cmd, &cmdBufferInfo);
   // vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &surfaceCapabilities);
