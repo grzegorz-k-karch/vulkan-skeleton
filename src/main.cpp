@@ -1,6 +1,6 @@
 #define VK_USE_PLATFORM_XCB_KHR
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include "vulkan/vulkan_core.h"
+#include "vulkan/vulkan.h"
 // Google logging library
 #include "glog/logging.h"
 
@@ -11,8 +11,7 @@
 #include <vector>
 
 // project
-#include "VulkanSkeletonConfig.h"
-#include "ParseConfigXML.h"
+#include "VulkanInfo.h"
 
 // xcb
 #include <xcb/xcb.h>
@@ -52,44 +51,12 @@ int main(int argc,  char** argv) {
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
 
-  if (argc != 2) {
-    LOG(FATAL) << "Usage: " << argv[0] << " <xml  config file>. Exiting";
-  }
-
-  // Initialize GLFW
-  if (!glfwInit()) {
-    LOG(FATAL) << "Could not initialize GLFW. Exiting";
-  }
-  if (!glfwVulkanSupported()) {
-    LOG(FATAL) << "Vulkan is not suported. Exiting";
-  }
-
   VulkanInfo vulkanInfo;
   VkResult result = VK_SUCCESS;
-  //==========================================================================  
-  // 1. Enumerate Instance Layer properties
-  uint32_t instanceLayerCount;
   
-  // Get number of instance layers
-  vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
-  vulkanInfo.InstanceLayerProperties.resize(instanceLayerCount);
-  vkEnumerateInstanceLayerProperties(&instanceLayerCount,
-				     vulkanInfo.InstanceLayerProperties.data());
-
-  vulkanInfo.InstanceExtensionProperties.resize(instanceLayerCount);
-
-  for (int i = 0; i < instanceLayerCount; i++) {
-    const VkLayerProperties &prop = vulkanInfo.InstanceLayerProperties[i];
-
-    uint32_t instanceExtensionCount;
-    vkEnumerateInstanceExtensionProperties(prop.layerName,
-					   &instanceExtensionCount,
-					   nullptr);
-    vulkanInfo.InstanceExtensionProperties[i].resize(instanceExtensionCount);
-    vkEnumerateInstanceExtensionProperties(prop.layerName,
-					   &instanceExtensionCount,
-  					   vulkanInfo.InstanceExtensionProperties[i].data());
-  }
+  //==========================================================================  
+  // 1. Get Instance Layer properties
+  vulkanInfo.GetLayers();
 
   //==========================================================================
   // 2. Instance Creation
@@ -114,134 +81,106 @@ int main(int argc,  char** argv) {
   }
 
   //==========================================================================
-  // 3. Enumerate Physical Devices
-  uint32_t physicalDeviceCount;
+  // 3. Get Physical Devices
+  vulkanInfo.GetPhysicalDevices(instance);  
+
+  // //==========================================================================
+  // // 4. Create Device  
+  // // TODO: here just taking the first device
+  // const int physicalDeviceId = 0;
+  // VkPhysicalDevice &physicalDevice = vulkanInfo.PhysicalDevices[physicalDeviceId];
   
-  // Get number of devices
-  vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr);
-  vulkanInfo.PhysicalDevices.resize(physicalDeviceCount);
-  vkEnumeratePhysicalDevices(instance, &physicalDeviceCount,
-  			     vulkanInfo.PhysicalDevices.data());
+  // uint32_t queueFamilyCount;
+  // vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice,
+  // 					   &queueFamilyCount,
+  // 					   nullptr);
+  // vulkanInfo.QueueFamilyProperties.resize(queueFamilyCount);
+  // vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice,
+  // 					   &queueFamilyCount,
+  // 					   vulkanInfo.QueueFamilyProperties.data());
 
-  vulkanInfo.DeviceExtensionProperties.resize(physicalDeviceCount);
+  // vulkanInfo.PhysicalDeviceMemoryProperties.resize(physicalDeviceCount);
+  // vkGetPhysicalDeviceMemoryProperties(physicalDevice,
+  // 				      &vulkanInfo.PhysicalDeviceMemoryProperties[physicalDeviceId]);
 
-  for (int i = 0; i < physicalDeviceCount; i++) {
-
-    VkPhysicalDevice &physicalDevice = vulkanInfo.PhysicalDevices[i];
-
-    vulkanInfo.DeviceExtensionProperties[i].resize(layers.size());
-    for (int j = 0; j < layers.size(); j++) {
-      uint32_t deviceExtensionCount;
-      vkEnumerateDeviceExtensionProperties(physicalDevice,
-					   layers[j],
-					   &deviceExtensionCount,
-					   nullptr);
-      vulkanInfo.DeviceExtensionProperties[i][j].resize(deviceExtensionCount);
-      vkEnumerateDeviceExtensionProperties(physicalDevice,
-					   layers[j],
-					   &deviceExtensionCount,
-					   vulkanInfo.DeviceExtensionProperties[i][j].data());
-    }
-  }
+  // vulkanInfo.PhysicalDeviceProperties.resize(physicalDeviceCount);
+  // vkGetPhysicalDeviceProperties(physicalDevice,
+  // 				&vulkanInfo.PhysicalDeviceProperties[physicalDeviceId]);
   
-
-  //==========================================================================
-  // 4. Create Device  
-  // TODO: here just taking the first device
-  const int physicalDeviceId = 0;
-  VkPhysicalDevice &physicalDevice = vulkanInfo.PhysicalDevices[physicalDeviceId];
-  
-  uint32_t queueFamilyCount;
-  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice,
-					   &queueFamilyCount,
-					   nullptr);
-  vulkanInfo.QueueFamilyProperties.resize(queueFamilyCount);
-  vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice,
-					   &queueFamilyCount,
-  					   vulkanInfo.QueueFamilyProperties.data());
-
-  vulkanInfo.PhysicalDeviceMemoryProperties.resize(physicalDeviceCount);
-  vkGetPhysicalDeviceMemoryProperties(physicalDevice,
-				      &vulkanInfo.PhysicalDeviceMemoryProperties[physicalDeviceId]);
-
-  vulkanInfo.PhysicalDeviceProperties.resize(physicalDeviceCount);
-  vkGetPhysicalDeviceProperties(physicalDevice,
-				&vulkanInfo.PhysicalDeviceProperties[physicalDeviceId]);
-  
-  // Create the logical device object from physical device
-  VkDeviceCreateInfo deviceInfo = {};
-  VkDevice device;
-  if (vkCreateDevice(physicalDevice,
-		     &deviceInfo,
-		     nullptr,
-		     &device) != VK_SUCCESS) {
-    LOG(FATAL) << "Could not create logical device. Exiting.";
-  }
-
-  //==========================================================================
-  // 5. Presentation Initialization
-  xcb_window_t window;
-  xcb_connection_t *connection;
-  
-  CreateWindow(&window, &connection);
-
-  VkXcbSurfaceCreateInfoKHR surfaceCreateInfo = {VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
-						 nullptr,
-						 0,
-						 connection,
-						 window};
-  VkSurfaceKHR surface;
-  result = vkCreateXcbSurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface);
-  if (result != VK_SUCCESS) {
-    LOG(FATAL) << "Could not create surface (Error: " << result << "). Exiting.";
-  }
-
-  int graphicsQueueFamilyIndex;
-  for (int queueIndex = 0; queueIndex < 1; queueIndex++) {
-    VkBool32 isPresentationSupported = false;
-    vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice,
-					 queueIndex,
-					 surface,
-					 &isPresentationSupported);
-    if (isPresentationSupported) {
-      graphicsQueueFamilyIndex = queueIndex;
-      break;
-    }
-  }
-  VkQueue queue;
-  vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &queue);
-
-  uint32_t formatCount;
-  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice,
-				       surface,
-				       &formatCount,
-				       nullptr);
-  vulkanInfo.SurfaceFormats.resize(formatCount);
-  vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice,
-				       surface,
-				       &formatCount,
-				       vulkanInfo.SurfaceFormats.data());
-
-  // vkBeginCommandBuffer(cmd, &cmdBufferInfo);
-  // vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &surfaceCapabilities);
-  // vkGetPhysicalDeviceSurfacePresentModesKHR(device,  surface, &presentModeCount, nullptr);
-  // VkPresentModeKHR presentModes[presentModeCount];
-  // vkGetPhysicalDeviceSurfacePresentModesKHR(device,  surface, &presentModeCount, presentModes);
-
-  // VkSwapchainCreateInfoKHR swapChainInfo = {};
-  // vkCreateSwapchainKHR(device, &swapChainInfo, nullptr, &swapChain);
-
-  // vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, nullptr);
-  // VkImage swapChainImages[swapChainImageCount];
-  // vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, swapChainImages);
-
-  // for (swapChainImages) {
-  // SetImageLayout();
-  // VkImageMemoryBarrier imageMemoryBarrier = {};
-  // vkCmdPipelineBarrier(cmd, srcStages, destStages, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
-  // vkCreateImageView(device, &colorImageView,  nullptr, &scBuffer.view);
-  // buffers.push_back(scBuffer);
+  // // Create the logical device object from physical device
+  // VkDeviceCreateInfo deviceInfo = {};
+  // VkDevice device;
+  // if (vkCreateDevice(physicalDevice,
+  // 		     &deviceInfo,
+  // 		     nullptr,
+  // 		     &device) != VK_SUCCESS) {
+  //   LOG(FATAL) << "Could not create logical device. Exiting.";
   // }
+
+  // //==========================================================================
+  // // 5. Presentation Initialization
+  // xcb_window_t window;
+  // xcb_connection_t *connection;
+  
+  // CreateWindow(&window, &connection);
+
+  // VkXcbSurfaceCreateInfoKHR surfaceCreateInfo = {VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
+  // 						 nullptr,
+  // 						 0,
+  // 						 connection,
+  // 						 window};
+  // VkSurfaceKHR surface;
+  // result = vkCreateXcbSurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface);
+  // if (result != VK_SUCCESS) {
+  //   LOG(FATAL) << "Could not create surface (Error: " << result << "). Exiting.";
+  // }
+
+  // int graphicsQueueFamilyIndex;
+  // for (int queueIndex = 0; queueIndex < 1; queueIndex++) {
+  //   VkBool32 isPresentationSupported = false;
+  //   vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice,
+  // 					 queueIndex,
+  // 					 surface,
+  // 					 &isPresentationSupported);
+  //   if (isPresentationSupported) {
+  //     graphicsQueueFamilyIndex = queueIndex;
+  //     break;
+  //   }
+  // }
+  // VkQueue queue;
+  // vkGetDeviceQueue(device, graphicsQueueFamilyIndex, 0, &queue);
+
+  // uint32_t formatCount;
+  // vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice,
+  // 				       surface,
+  // 				       &formatCount,
+  // 				       nullptr);
+  // vulkanInfo.SurfaceFormats.resize(formatCount);
+  // vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice,
+  // 				       surface,
+  // 				       &formatCount,
+  // 				       vulkanInfo.SurfaceFormats.data());
+
+  // // vkBeginCommandBuffer(cmd, &cmdBufferInfo);
+  // // vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &surfaceCapabilities);
+  // // vkGetPhysicalDeviceSurfacePresentModesKHR(device,  surface, &presentModeCount, nullptr);
+  // // VkPresentModeKHR presentModes[presentModeCount];
+  // // vkGetPhysicalDeviceSurfacePresentModesKHR(device,  surface, &presentModeCount, presentModes);
+
+  // // VkSwapchainCreateInfoKHR swapChainInfo = {};
+  // // vkCreateSwapchainKHR(device, &swapChainInfo, nullptr, &swapChain);
+
+  // // vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, nullptr);
+  // // VkImage swapChainImages[swapChainImageCount];
+  // // vkGetSwapchainImagesKHR(device, swapChain, &swapChainImageCount, swapChainImages);
+
+  // // for (swapChainImages) {
+  // // SetImageLayout();
+  // // VkImageMemoryBarrier imageMemoryBarrier = {};
+  // // vkCmdPipelineBarrier(cmd, srcStages, destStages, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+  // // vkCreateImageView(device, &colorImageView,  nullptr, &scBuffer.view);
+  // // buffers.push_back(scBuffer);
+  // // }
   
   return 0;
 }

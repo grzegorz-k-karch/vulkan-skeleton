@@ -1,12 +1,12 @@
 #ifndef VULKAN_SKELETON_CONFIG_H
 #define VULKAN_SKELETON_CONFIG_H
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
 // the configured options and settings for Tutorial
 #define VulkanSkeleton_VERSION_MAJOR @VulkanSkeleton_VERSION_MAJOR@
 #define VulkanSkeleton_VERSION_MINOR @VulkanSkeleton_VERSION_MINOR@
+
+#include "vulkan/vulkan_core.h"
+#include "vulkan/vulkan.h"
 
 #include <vector>
 #include <string>
@@ -17,18 +17,5 @@ struct VulkanSkeletonConfig {
   std::vector<std::string> InstanceExtensionProperties;
 };
 
-struct VulkanInfo {
-  
-  std::vector<VkLayerProperties> InstanceLayerProperties;
-  // [layer][extension]
-  std::vector<std::vector<VkExtensionProperties>> InstanceExtensionProperties;
-  std::vector<VkPhysicalDevice> PhysicalDevices;
-  // [device][layer][extension]
-  std::vector<std::vector<std::vector<VkExtensionProperties>>> DeviceExtensionProperties;
-  std::vector<VkQueueFamilyProperties> QueueFamilyProperties;
-  std::vector<VkPhysicalDeviceMemoryProperties> PhysicalDeviceMemoryProperties;
-  std::vector<VkPhysicalDeviceProperties> PhysicalDeviceProperties;
-  std::vector<VkSurfaceFormatKHR> SurfaceFormats;  
-};
 
 #endif//VULKAN_SKELETON_CONFIG_H
