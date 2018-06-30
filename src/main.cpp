@@ -52,6 +52,7 @@ int main(int argc,  char** argv) {
   google::InitGoogleLogging(argv[0]);
 
   VulkanInfo vulkanInfo;
+  VulkanInstance vulkanInstance;
   VkResult result = VK_SUCCESS;
   
   //==========================================================================  
@@ -60,29 +61,11 @@ int main(int argc,  char** argv) {
 
   //==========================================================================
   // 2. Instance Creation
-  VkInstanceCreateInfo instanceInfo = {};
-
-  // Specify layer names that need to be enabled on instance
-  std::vector<const char*> layers;
-  layers.push_back("VK_LAYER_LUNARG_standard_validation");
-  layers.push_back("VK_LAYER_LUNARG_object_tracker");
-  instanceInfo.ppEnabledLayerNames = layers.data();
-
-  // Specify extensions that need to be enabled on instance
-  std::vector<const char*> extensions;
-  extensions.push_back("VK_KHR_SURFACE_EXTENSION_NAME");
-  extensions.push_back("VK_KHR_WIN32_SURFACE_EXTENSION_NAME");
-  instanceInfo.ppEnabledExtensionNames = extensions.data();
-
-  // Vulkan instance object
-  VkInstance instance;
-  if (vkCreateInstance(&instanceInfo, nullptr, &instance) != VK_SUCCESS) {
-    LOG(FATAL) << "Could not create Vulkan instance. Exiting";
-  }
-
+  vulkanInstance.CreateInstance();
+  
   //==========================================================================
   // 3. Get Physical Devices
-  vulkanInfo.GetPhysicalDevices(instance);  
+  vulkanInfo.GetPhysicalDevices(vulkanInstance.Instance);  
 
   // //==========================================================================
   // // 4. Create Device  
